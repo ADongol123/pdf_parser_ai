@@ -42,23 +42,24 @@ class EmbeddingManager:
     
     def load_from_chroma(self):
         """Load embeddings and metadata from ChromaDB."""
-        data = self.collection.get()
+        data = self.collection.get(include=["embeddings", "metadatas", "documents"], limit=99999)
 
-        # Debugging: Print the entire data structure
-        print("Data from ChromaDB:", data)
-
-        if not data["ids"]:  # No data in collection
+        if not data["ids"]:
             print("No data found in collection.")
             return None, []
 
-        # Continue processing if data exists
-        embeddings = np.array(data["embeddings"])
-        embeddings = embeddings.astype(np.float32)  # Convert to float32 for torch compatibility
-        embeddings = torch.tensor(embeddings, dtype=torch.float32).to(self.device)
+        print(f"Loaded {len(data['ids'])} records from ChromaDB.")
 
-        pages_and_chunks = [{"id": i, "text": doc, **meta} for i, doc, meta in zip(data["ids"], data["documents"], data["metadatas"])]
+        embeddings = np.array(data["embeddings"], dtype=np.float32)
+        embeddings = torch.tensor(embeddings).to(self.device)
+
+        pages_and_chunks = [
+            {"id": i, "text": doc, **meta}
+            for i, doc, meta in zip(data["ids"], data["documents"], data["metadatas"])
+        ]
 
         return embeddings, pages_and_chunks
+
 
 
 

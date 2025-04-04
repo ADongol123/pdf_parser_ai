@@ -63,8 +63,9 @@ def main():
         
         # Reload embeddings from ChromaDB
         embeddings, pages_and_chunks = embedding_manager.load_from_chroma()
+        print("Embeddings", embeddings)
         
-    
+        
     
     while True:
         query = input("Enter your questoin about the PDFs (or 'quit' to exit): ")
