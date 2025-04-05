@@ -2,6 +2,7 @@ import os
 from data_processing import process_pdfs
 from embeddings import EmbeddingManager
 from retrieval import retrieve_relevant_resources, print_results
+from bot.mistral import create_ollama_prompt, query_ollama
 
 # def main():
 #     # Configuration
@@ -82,6 +83,20 @@ def main():
         
         print_results(query, results)
         
+        # Create prompt for Ollama/Mistral
+        ollama_prompt = create_ollama_prompt(query, results)
+        print("\nGenerated Prompt for Mistral:")
+        from utils import print_wrapped
+        print_wrapped(ollama_prompt)
 
+        # Query the local Mistral model using Langchain via ollama_interface
+        print("\nAsking Mistral using Langchain...")
+        mistral_response = query_ollama(ollama_prompt)
+
+        if mistral_response:
+            print("\nMistral's Answer:")
+            print_wrapped(mistral_response)
+        else:
+            print("Failed to get a response from Mistral via Langchain.")
 if __name__ == "__main__":
     main()
