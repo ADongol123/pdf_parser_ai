@@ -60,9 +60,6 @@ class EmbeddingManager:
 
         return embeddings, pages_and_chunks
 
-
-
-
     
     # def load_embeddings(self, file_path: str) -> tuple[torch.Tensor, list[dict]]:
     #     """Load embeddings from CSV file."""
