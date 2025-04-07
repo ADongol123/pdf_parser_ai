@@ -1,7 +1,7 @@
 from sentence_transformers import util
 import torch
 import textwrap
-from utils import print_wrapped
+from src.utils import print_wrapped
 def retrieve_relevant_resources(query: str,
                              embeddings: torch.Tensor,
                              model,

@@ -4,6 +4,9 @@ from tqdm import tqdm
 import pandas as pd
 from spacy.lang.en import English
 import re
+import pandas as pd
+from io import BytesIO
+
 
 def text_formatter(text: str) -> str:
     """Performs minor formatting on text."""
@@ -55,19 +58,36 @@ def process_text_chunks(pages_and_texts: list[dict], chunk_size: int = 10) -> li
                 "sentence_chunk": re.sub(r'\.([A-Z])', r'. \1', "".join(sentence_chunk).replace("  ", " ").strip()),
                 "chunk_char_count": 0,
                 "chunk_word_count": 0,
-                "chunk_token_count": 0
+                "chunk_token_count": 0,
+                "text": " ".join(sentence_chunk)
             }
             chunk_dict["chunk_char_count"] = len(chunk_dict["sentence_chunk"])
             chunk_dict["chunk_word_count"] = len(chunk_dict["sentence_chunk"].split(" "))
-            chunk_dict["chunk_token_count"] = len(chunk_dict["sentence_chunk"]) / 4
+            chunk_dict["chunk_token_count"] = len(chunk_dict["sentence_chunk"]) // 4
             pages_and_chunks.append(chunk_dict)
     
     return pages_and_chunks
 
-def process_pdfs(pdf_folder: str) -> pd.DataFrame:
-    """Main function to process PDFs and return a DataFrame."""
-    pdf_files = [os.path.join(pdf_folder, f) for f in os.listdir(pdf_folder) 
-                if f.endswith(".pdf")]
-    pages_and_texts = open_and_read_pdfs(pdf_files)
+def process_pdfs(content_io: BytesIO) -> pd.DataFrame:
+    """Process a PDF from a BytesIO object and return a DataFrame."""
+    
+    # Open the PDF from the BytesIO object
+    doc = fitz.open(stream=content_io, filetype="pdf")
+    
+    pages_and_texts = []
+    
+    # Extract text from each page in the PDF
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)  # Load each page
+        text = page.get_text()  # Extract text from the page
+        if text.strip():  # Only add text if it exists
+            pages_and_texts.append({
+                "page_number": page_num + 1,  # Start page numbering at 1
+                "text": text
+            })
+    
+    # Process the extracted text into chunks
     pages_and_chunks = process_text_chunks(pages_and_texts)
+    
+    # Return as a DataFrame
     return pd.DataFrame(pages_and_chunks)
