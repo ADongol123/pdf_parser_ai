@@ -17,7 +17,8 @@ class EmbeddingManager:
     def generate_embeddings(self, chunks: list[dict]) -> list[dict]:
         """Generate embeddings for text chunks."""
         for item in tqdm(chunks, desc="Generating embeddings"):
-            item['embedding'] = self.model.encode(item['sentence_chunk'], normalize_embeddings=True).tolist()
+            print(item,'items')
+            item['embedding'] = self.model.encode(item['text'], normalize_embeddings=True).tolist()
         return chunks
     
     def save_embeddings(self, chunks: list[dict], save_path: str):
@@ -28,7 +29,8 @@ class EmbeddingManager:
         
     def add_to_chroma(self,chunks: list[dict]):
         ids = [str(i) for i in range(len(chunks))]
-        documents  = [item['sentence_chunk'] for item in chunks]
+        print(chunks, 'chunks')
+        documents  = [item['text'] for item in chunks]
         metadatas = [{k: v for k, v in item.items() if k != 'embedding' and k != 'sentence_chunk'} for item in chunks]
         embeddings = [item['embedding'] for item in chunks]
         

@@ -15,33 +15,15 @@ from src.db.auth import verify_password, create_access_token, decode_access_toke
 from passlib.context import CryptContext
 from bson import ObjectId
 import datetime
+from src.db.models.query import QueryRequest
 
-
-
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = FastAPI()
 embedding_manager = EmbeddingManager()
 embeddings = None
 pages_and_chunks = None
-
-# Request model
-class QueryRequest(BaseModel):
-    query: str
-
-# @app.on_event("startup")
-# def initialize_embeddings():
-#     global embeddings, pages_and_chunks
-
-#     # Try loading from Chroma
-#     embeddings, pages_and_chunks = embedding_manager.load_from_chroma()
-
-#     if embeddings is None:
-#         print("Processing PDFs and generating embeddings.....")
-#         df = process_pdfs("data")
-#         chunks_with_embeddings = embedding_manager.generate_embeddings(df.to_dict(orient="records"))
-#         embedding_manager.add_to_chroma(chunks_with_embeddings)
-#         embeddings, pages_and_chunks = embedding_manager.load_from_chroma()
-#         print("Embeddings initialized")
 
 @app.get("/")
 def read_root():
@@ -79,7 +61,10 @@ async def upload_pdf(file:UploadFile = File(...), current_user: UserCreate = Dep
             "source":"pdf",
             "filename":file.filename,
             "text":chunk["text"],
-            "embeddings": chunk["embedding"]
+            "embeddings": chunk["embedding"],
+            "user_id":ObjectId(user_id),
+            "pdf_id": pdf_id,
+            "timestamp": datetime.datetime.utcnow()
         })
         # Adding to chromaDB
         embedding_manager.add_to_chroma([chunk])
@@ -90,62 +75,75 @@ async def upload_pdf(file:UploadFile = File(...), current_user: UserCreate = Dep
 
 
 
-# @app.post("/query")
-# async def query_pdf(req: QueryRequest, current_user:dict = Depends(get_current_user)):
-#     query = req.query
-#     # Get user email or ID fro JWT payload
-#     user_id = current_user["sub"] 
-    
-    
-#     if query.lower() == "quit":
-#         return {"message":"Seession ended."}
-    
-    
-#     # Perform the query as before, bot now associate the user;s query with theit ID
-#     results = retrieve_relevant_resources(
-#         query=query, 
-#         embeddings=embeddings, 
-#         model=embedding_manager.model, 
-#         pages_and_chunks=pages_and_chunks
-#     )
-    
-#     # Embed response and store it with the user ID
-#     ollama_prompt = create_ollama_prompt(query, results)
-#     mistral_response = query_ollama(ollama_prompt)
-    
-    
-#     if mistral_response:
-#         # Generate embedding for the response
-#         embedded_answer = embedding_manager.generate_embeddings([{
-#             "text": mistral_response
-#         }])
+@app.post("/query")
+async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_user)):
+    embeddings_collection = db["embeddings"]
+    query = req.query
+    pdf_id = req.pdf_id  
 
-#         # Save the answer embeddings to MongoDB
-#         embedding_data = {
-#             "user_id": ObjectId(current_user.id),  # Associate with the current user
-#             "source": "answer",
-#             "text": mistral_response,
-#             "embedding": embedded_answer[0]["embedding"],
-#             "timestamp": datetime.utcnow()  # Timestamp for when the embedding was created
-#         }
+    user_id = current_user["id"]
+    print(user_id,'user_id')
+    # print(user_id,'user_id')
+    if query.lower() == "quit":
+        return {"message": "Session ended."}
 
-#         # Insert the generated answer embedding into MongoDB
-#         await embeddings_collection.insert_one(embedding_data)
+    # Step 1: Fetch user-specific embeddings for the given PDF
+    embedding_docs = await embeddings_collection.find({ 
+        "user_id": ObjectId(user_id),
+        "pdf_id": ObjectId(pdf_id),
+        "source": "pdf" 
+    },max_time_ms = 5000).to_list(length=None)
 
-#         # Add the new answer embedding to Chroma (RAG)
-#         embedding_manager.add_to_chroma([embedded_answer[0]])
+    print(embedding_docs, 'embedding_docs')
+    if not embedding_docs:
+        return {"error": "No embeddings found for this PDF and user."}
 
-#         # Update global embeddings to include the new data
-#         global embeddings, pages_and_chunks
-#         embeddings, pages_and_chunks = embedding_manager.load_from_chroma()
+    # Step 2: Prepare data for retrieval
+    user_embeddings = [doc["embeddings"] for doc in embedding_docs]
+    user_chunks = [doc["text"] for doc in embedding_docs]
 
-#         return {
-#             "query": query,
-#             "prompt": ollama_prompt,
-#             "response": mistral_response
-#         }
+    pages_and_chunks = [{"text": text} for text in user_chunks]
 
-#     return {"error": "Failed to get a response from Mistral."}
+    # Step 3: Retrieve relevant resources
+    results = retrieve_relevant_resources(
+        query=query,
+        embeddings=user_embeddings,
+        model=embedding_manager.model,
+        pages_and_chunks=pages_and_chunks
+    )
+    print(results, 'results')
+    # Step 4: Generate response
+    ollama_prompt = create_ollama_prompt(query, results)
+    mistral_response = query_ollama(ollama_prompt)
+
+    if mistral_response:
+        # Step 5: Generate embeddings for the response
+        embedded_answer = embedding_manager.generate_embeddings([{
+            "text": mistral_response
+        }])
+
+        embedding_data = {
+            "user_id": ObjectId(user_id),
+            "pdf_id": ObjectId(pdf_id),  # Store with PDF ID
+            "source": "answer",
+            "text": mistral_response,
+            "embedding": embedded_answer[0]["embedding"],
+            "timestamp": datetime.datetime.utcnow()
+        }
+
+        await embeddings_collection.insert_one(embedding_data)
+
+        # Add new embedding to Chroma (optional if using external vector DB)
+        embedding_manager.add_to_chroma([embedded_answer[0]])
+
+        return {
+            "query": query,
+            "prompt": ollama_prompt,
+            "response": mistral_response
+        }
+
+    return {"error": "Failed to get a response from Mistral."}
+
 
 
 

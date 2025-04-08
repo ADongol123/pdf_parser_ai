@@ -15,7 +15,7 @@ Answer the following question based *only* on the information within these snipp
 
 Question: {question}"""
     prompt = PromptTemplate(template=template, input_variables=["context", "question"])
-    context = "\n".join([f"Page {res['page_number']}: {res['text']}" for res in relevant_resources])
+    context = "\n".join([f"{res['text']}" for res in relevant_resources])
     return prompt.format(context=context, question=query)
 
 def query_ollama(prompt: str, model_name: str = MISTRAL_MODEL):

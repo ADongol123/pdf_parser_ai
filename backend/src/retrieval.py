@@ -9,10 +9,12 @@ def retrieve_relevant_resources(query: str,
                              n_resources_to_return: int = 5) -> list[dict]:
     """Retrieve relevant resources based on query."""
     query_embedding = model.encode(query, convert_to_tensor=True)
+    print(f"Query embedding shape: {query_embedding.shape}")
+    print(f"Embeddings shape: {embeddings}")
+    embeddings = torch.tensor(embeddings, device=query_embedding.device)
     dot_scores = util.dot_score(query_embedding, embeddings)[0]
     scores, indices = torch.topk(dot_scores, k=n_resources_to_return)
-    print(f"Query embedding shape: {query_embedding.shape}")
-    print(f"Embeddings shape: {embeddings.shape}")
+   
     return [pages_and_chunks[idx] for idx in indices]
 
 def print_results(query: str, results: list[dict]):
