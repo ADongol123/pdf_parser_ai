@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, UploadFile,File,HTTPException, Depends
+from fastapi import FastAPI, Request, UploadFile,File,HTTPException, Depends,Query
 from pydantic import BaseModel
 from src.data_processing import process_pdfs
 from src.embeddings import EmbeddingManager
@@ -15,15 +15,40 @@ from src.db.auth import verify_password, create_access_token, decode_access_toke
 from passlib.context import CryptContext
 from bson import ObjectId
 import datetime
-from src.db.models.query import QueryRequest
+from src.db.models.query import QueryRequest,ConverstaionReq
+from fastapi.middleware.cors import CORSMiddleware
+from bson.json_util import dumps, loads
+from fastapi.responses import JSONResponse
+
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 embedding_manager = EmbeddingManager()
 embeddings = None
 pages_and_chunks = None
+
+
+def serialize_conversation(convo):
+    return {
+        "_id": str(convo["_id"]),
+        "user_id": str(convo["user_id"]),
+        "pdf_id": str(convo["pdf_id"]),
+        "query": convo.get("query", ""),
+        "response": convo.get("response", ""),
+        # "timestamp": convo["timestamp"].isoformat() if isinstance(convo["timestamp"], datetime) else convo["timestamp"],
+    }
+
+
+
 
 @app.get("/")
 def read_root():
@@ -135,7 +160,15 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
 
         # Add new embedding to Chroma (optional if using external vector DB)
         embedding_manager.add_to_chroma([embedded_answer[0]])
-
+        
+        converstaion_data = {
+            "user_id": ObjectId(user_id),
+            "pdf_id" : ObjectId(pdf_id),
+            "query": query,
+            "response": mistral_response,
+            "timestamp": datetime.datetime.utcnow()
+        }
+        await db['conversations'].insert_one(converstaion_data)
         return {
             "query": query,
             "prompt": ollama_prompt,
@@ -144,6 +177,25 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
 
     return {"error": "Failed to get a response from Mistral."}
 
+@app.get("/conversations")
+async def get_conversations(
+    pdf_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = current_user["id"]
+    conversations_collection = db["conversations"]
+
+    cursor = conversations_collection.find({
+        "user_id": ObjectId(user_id),
+        "pdf_id": ObjectId(pdf_id)
+    })
+
+    conversations = await cursor.to_list(length=None)
+    
+    # Convert each document to JSON-serializable format
+    serialized_conversations = [serialize_conversation(doc) for doc in conversations]
+
+    return serialized_conversations
 
 
 
@@ -191,5 +243,6 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
     
     return {
         "access_token": access_token,
+        "user_id": str(user["_id"]),
         "token_type": "bearer"
     }  

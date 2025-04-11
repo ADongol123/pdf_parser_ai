@@ -1,0 +1,7 @@
+1. Work on the topic section : Meaning suggest the topics that are in the pdf by which users can know some topics in the pdfs
+
+2. Work on integrating the generated embeddings as a data along with the pdf so that we can increase the embeddings size as the conversation with the llm increases 
+
+3. Work on the response of the mistral ai Gen AI.
+
+4. Work on the UI in the frontend 

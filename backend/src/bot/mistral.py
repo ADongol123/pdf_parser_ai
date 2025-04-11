@@ -6,7 +6,7 @@ MISTRAL_MODEL = "mistral"  # Or the specific tag of your Mistral model in Ollama
 
 def create_ollama_prompt(query: str, relevant_resources: list[dict]):
     """Create a prompt for the Ollama/Mistral model using Langchain PromptTemplate."""
-    template = """You are a helpful assistant that answers questions based on the provided document snippets.
+    template = """You are a helpful assistant that  .
 
 Document Snippets:
 {context}

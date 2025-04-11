@@ -1,38 +1,20 @@
 "use client";
 
 import type React from "react";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { LoginCredentials } from "@/lib/auth";
-import { login } from "@/lib/api";
-import { useRouter } from "next/navigation";
 
-export function LoginForm() {
-  const router = useRouter();
+export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("");
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const credentials: LoginCredentials = { username, password };
-      const { access_token,user_id } = await login(credentials);
-
-      // Save the token if needed
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('userId', user_id);
-
-
-      // Redirect on success
-      router.push('/chat');
-    } catch (error: any) {
-      setStatus(error.message);
-    }
+    // Handle registration logic here
   };
 
   return (
@@ -40,37 +22,34 @@ export function LoginForm() {
       <form onSubmit={handleSubmit}>
         <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="name">Full Name</Label>
             <Input
-              id="email"
+              id="name"
+              type="text"
+              placeholder="John Doe"
+              required
+              className="border-black/20 focus-visible:ring-black"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="register-email">Email</Label>
+            <Input
+              id="register-email"
               type="email"
               placeholder="name@example.com"
               required
               className="border-black/20 focus-visible:ring-black"
-              onChange={(e) => setUsername(e.target.value)}
-              value={username}
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Button
-                type="button"
-                variant="link"
-                className="px-0 text-xs text-black/70 font-normal"
-              >
-                Forgot password?
-              </Button>
-            </div>
+            <Label htmlFor="register-password">Password</Label>
             <div className="relative">
               <Input
-                id="password"
+                id="register-password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 required
                 className="border-black/20 focus-visible:ring-black pr-10"
-                onChange={(e) => setPassword(e.target.value)}
-                value={password}
               />
               <Button
                 type="button"
@@ -96,8 +75,12 @@ export function LoginForm() {
             type="submit"
             className="w-full bg-black text-white hover:bg-black/90"
           >
-            Sign in
+            Create account
           </Button>
+          <p className="text-xs text-center text-gray-500">
+            By creating an account, you agree to our Terms of Service and
+            Privacy Policy
+          </p>
         </CardFooter>
       </form>
     </Card>
