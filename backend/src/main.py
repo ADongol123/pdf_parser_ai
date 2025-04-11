@@ -199,6 +199,44 @@ async def get_conversations(
 
 
 
+@app.post("/extract")
+async def extract_topics_from_db(pdf_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    embeddings_collection = db["embeddings"]
+
+    # Step 1: Fetch stored chunks for this user & PDF
+    embedding_docs = await embeddings_collection.find({
+        "user_id": ObjectId(user_id),
+        "pdf_id": ObjectId(pdf_id),
+        "source": "pdf"
+    }, max_time_ms=5000).to_list(length=None)
+
+    if not embedding_docs:
+        return {"error": "No data found for this PDF."}
+
+    # Step 2: Grab the text chunks
+    all_text_chunks = [doc["text"] for doc in embedding_docs]
+    combined_text = " ".join(all_text_chunks)
+    short_text = combined_text[:4000]  
+
+    # Step 3: Create prompt for Mistral
+    prompt = f"""
+    Analyze the following document content and identify 5–10 high-level topics or themes discussed in it.
+    Respond only with a numbered list of topic names.
+
+    Document Content:
+    {short_text}
+    """
+
+    # Step 4: Query Mistral
+    response = query_ollama(prompt)
+
+    return {
+        "topics": response.split("\n") if response else [],
+        "raw_response": response
+    }
+
+
 # ----------------------------------------------Login and Register Section-----------------------
 
 user_collection = db["users"]
