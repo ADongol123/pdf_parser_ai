@@ -4,7 +4,7 @@ from src.data_processing import process_pdfs
 from src.embeddings import EmbeddingManager
 from src.retrieval import retrieve_relevant_resources, print_results
 from src.bot.mistral import create_ollama_prompt, query_ollama
-from src.utils import print_wrapped
+from src.utils import print_wrapped,is_meta_question
 import os
 from src.db.mongo import pdfs_collection,client,db
 from io import BytesIO
@@ -105,9 +105,23 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
     embeddings_collection = db["embeddings"]
     query = req.query
     pdf_id = req.pdf_id  
-
     user_id = current_user["id"]
+    pdf_obj_id = ObjectId(pdf_id)
+    
+    if is_meta_question(query):
+        conversations = await db['conversations'].find({
+            "user_id": ObjectId(user_id),
+            "pdf_id": pdf_obj_id
+        }).sort("timestamp", 1).to_list(length=None)
+
+        if conversations:
+            first_q = conversations[0]["query"]
+            return {"response": f"Your first question was: \"{first_q}\""}
+        else:
+            return {"response": "You haven't asked any questions yet."}
+        
     print(user_id,'user_id')
+    
     # print(user_id,'user_id')
     if query.lower() == "quit":
         return {"message": "Session ended."}
@@ -119,7 +133,8 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
         "source": "pdf" 
     },max_time_ms = 5000).to_list(length=None)
 
-    print(embedding_docs, 'embedding_docs')
+    if embedding_docs:
+        print('Embeddings Created')
     if not embedding_docs:
         return {"error": "No embeddings found for this PDF and user."}
 
@@ -149,7 +164,7 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
 
         embedding_data = {
             "user_id": ObjectId(user_id),
-            "pdf_id": ObjectId(pdf_id),  # Store with PDF ID
+            "pdf_id": ObjectId(pdf_id), 
             "source": "answer",
             "text": mistral_response,
             "embedding": embedded_answer[0]["embedding"],
@@ -166,6 +181,7 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
             "pdf_id" : ObjectId(pdf_id),
             "query": query,
             "response": mistral_response,
+            "embeddings": embedded_answer[0]["embedding"],
             "timestamp": datetime.datetime.utcnow()
         }
         await db['conversations'].insert_one(converstaion_data)
