@@ -8,47 +8,79 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { RegisterCredentials } from "@/lib/auth";
+import { register } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+type RegisterFormProps = {
+  onSuccess?: () => void;
+};
+export function RegisterForm({ onSuccess }: RegisterFormProps) {
+  const router = useRouter();
 
-export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle registration logic here
+    try {
+      const credentials: RegisterCredentials = { username, password, email };
+      const { message } = await register(credentials);
+      toast.success("🎉 Registered successfully!");
+      // Redirect on success
+      onSuccess?.();
+    } catch (error: any) {
+      setStatus(error.message);
+    }
   };
 
   return (
-    <Card className="border-black/10">
+    <Card className="border-white bg-transparent ">
       <form onSubmit={handleSubmit}>
         <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="name" className="text-white">
+              Full Name
+            </Label>
             <Input
               id="name"
               type="text"
               placeholder="John Doe"
               required
+              onChange={(e) => setUsername(e.target.value)}
+              value={username}
               className="border-black/20 focus-visible:ring-black"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="register-email">Email</Label>
+            <Label htmlFor="register-email" className="text-white">
+              Email
+            </Label>
             <Input
               id="register-email"
               type="email"
               placeholder="name@example.com"
               required
+              onChange={(e) => setEmail(e.target.value)}
+              value={email}
               className="border-black/20 focus-visible:ring-black"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="register-password">Password</Label>
+            <Label htmlFor="register-password" className="text-white">
+              Password
+            </Label>
             <div className="relative">
               <Input
                 id="register-password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 required
+                onChange={(e) => setPassword(e.target.value)}
+                value={password}
                 className="border-black/20 focus-visible:ring-black pr-10"
               />
               <Button
@@ -73,7 +105,7 @@ export function RegisterForm() {
         <CardFooter className="flex flex-col space-y-4">
           <Button
             type="submit"
-            className="w-full bg-black text-white hover:bg-black/90"
+            className="w-full bg-transparent cursor-pointer text-white hover:bg-white hover:text-black border border-white"
           >
             Create account
           </Button>

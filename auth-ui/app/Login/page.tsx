@@ -10,6 +10,8 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { LoginCredentials } from "@/lib/auth";
 import { login } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { SparklesCore } from "@/components/sparkles";
+import { toast } from "sonner";
 
 export function LoginForm() {
   const router = useRouter();
@@ -21,26 +23,25 @@ export function LoginForm() {
     e.preventDefault();
     try {
       const credentials: LoginCredentials = { username, password };
-      const { access_token,user_id } = await login(credentials);
+      const { access_token, user_id } = await login(credentials);
 
       // Save the token if needed
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('userId', user_id);
-
-
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("userId", user_id);
+      toast.success("🎉 Login Successfull");
       // Redirect on success
-      router.push('/chat');
+      router.push("/upload");
     } catch (error: any) {
       setStatus(error.message);
     }
   };
 
   return (
-    <Card className="border-black/10">
+    <Card className="border-white bg-transparent ">
       <form onSubmit={handleSubmit}>
         <CardContent className="pt-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-white">Email</Label>
             <Input
               id="email"
               type="email"
@@ -53,7 +54,7 @@ export function LoginForm() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-white">Password</Label>
               <Button
                 type="button"
                 variant="link"
@@ -76,7 +77,7 @@ export function LoginForm() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="absolute right-0 top-0 h-full px-3 py-2 text-black/70"
+                className="absolute right-0 top-0 h-full px-3 py-2  border border-white bg-transparent rounded-r-md !text-black"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
@@ -94,12 +95,12 @@ export function LoginForm() {
         <CardFooter className="flex flex-col space-y-4">
           <Button
             type="submit"
-            className="w-full bg-black text-white hover:bg-black/90"
+            className="w-full bg-transparent cursor-pointer text-white hover:bg-white hover:text-black border border-white"
           >
             Sign in
           </Button>
         </CardFooter>
-      </form>
+      </form> 
     </Card>
   );
 }

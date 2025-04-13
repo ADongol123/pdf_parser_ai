@@ -7,8 +7,11 @@ class UserBase(BaseModel):
     email: str
     
 
+class RegisterBase(BaseModel):
+    username:str
+    email:str
 
-class UserCreate(UserBase):
+class UserCreate(RegisterBase):
     password: str
     
     

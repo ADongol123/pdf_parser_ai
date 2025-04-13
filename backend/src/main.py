@@ -19,7 +19,7 @@ from src.db.models.query import QueryRequest,ConverstaionReq
 from fastapi.middleware.cors import CORSMiddleware
 from bson.json_util import dumps, loads
 from fastapi.responses import JSONResponse
-
+from src.meta_data import META_QUESTION_PHRASES
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -300,3 +300,18 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
         "user_id": str(user["_id"]),
         "token_type": "bearer"
     }  
+    
+    
+    
+    #-----------------------------------------------Meta Data Section --------------------------
+@app.post("/save-meta-phrases")
+async def save_phrases():
+    await db["meta_question_phrases"].delete_many({})  # clear old data if needed
+
+    records = [
+        {"category": category, "phrases": phrases}
+        for category, phrases in META_QUESTION_PHRASES.items()
+    ]
+
+    result = await db["meta_question_phrases"].insert_many(records)
+    return {"inserted_ids": [str(_id) for _id in result.inserted_ids]}
