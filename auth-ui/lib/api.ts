@@ -1,4 +1,5 @@
 import { LoginCredentials, RegisterCredentials, User } from "../lib/auth";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export async function login(credentials: LoginCredentials): Promise<{
   access_token: string;
@@ -46,13 +47,7 @@ export async function register(credentials: RegisterCredentials): Promise<{
   return { message: "You have registered successfully" };
 }
 
-
 // -----------------------------------------UPLOAD PDF------------------------------------------------------------
-
-
-// lib/api.tsx
-
-// lib/api.tsx
 
 export async function uploadFile(
   file: File,
@@ -64,7 +59,6 @@ export async function uploadFile(
     formData.append("file", file);
 
     const token = localStorage.getItem("access_token");
-    console.log(token, "token");
     const response = await fetch("http://127.0.0.1:8000/upload", {
       method: "POST",
       headers: {
@@ -79,7 +73,7 @@ export async function uploadFile(
     }
 
     const data = await response.json();
-    const fileId = data?.file_id;
+    const fileId = data?.pdf_id;
 
     if (fileId) {
       localStorage.setItem("fileId", fileId);
@@ -89,4 +83,102 @@ export async function uploadFile(
     onError?.(error.message || "An error occurred during upload");
   }
 }
+
+// -----------------------------------------CHAT------------------------------------------------------------
+export const getConversationByPdfId = async () => {
+  const token = localStorage.getItem("access_token");
+  const pdfId = localStorage.getItem("fileId");
+
+  const res = await fetch(`http://127.0.0.1:8000/conversations?pdf_id=${pdfId}`, {
+    method: "GET", 
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch previous conversation");
+  }
+
+  return res.json(); 
+};
+
+
+
+
+export const fetchPdf = async () => {
+  const pdfId = localStorage.getItem("fileId");
+  const token = localStorage.getItem("access_token");
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/pdf/${pdfId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch PDF");
+    }
+
+    const blob = await response.blob();
+    const pdfUrl = URL.createObjectURL(blob);
+
+    return pdfUrl;
+  } catch (error) {
+    console.error("Error fetching PDF:", error);
+  }
+};
+
+
+export const sendMessage = async (query: string) => {
+  const pdfId = localStorage.getItem("fileId");
+  const token = localStorage.getItem("token");
+
+  const url = `http://127.0.0.1:8000/chat/?pdf_id=${encodeURIComponent(
+    pdfId || ""
+  )}&query=${encodeURIComponent(query)}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return res.json();
+};
+
+
+export const sendQuery = async (query: string) => {
+  const pdfId = localStorage.getItem("fileId");
+  const token = localStorage.getItem("access_token");
+  try {
+    const response = await fetch("http://127.0.0.1:8000/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        query,
+        pdf_id: pdfId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to get response from API");
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error in sendQuery:", error);
+    throw error;
+  }
+};
+
+
 

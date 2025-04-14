@@ -4,7 +4,7 @@ from src.data_processing import process_pdfs
 from src.embeddings import EmbeddingManager
 from src.retrieval import retrieve_relevant_resources, print_results
 from src.bot.mistral import create_ollama_prompt, query_ollama
-from src.utils import print_wrapped,is_meta_question
+from src.utils import print_wrapped,is_meta_question,fs
 import os
 from src.db.mongo import pdfs_collection,client,db
 from io import BytesIO
@@ -20,8 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from bson.json_util import dumps, loads
 from fastapi.responses import JSONResponse
 from src.meta_data import META_QUESTION_PHRASES
-
+from src.utils import get_pdf_metadata
+from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
+import tempfile
+from motor.motor_asyncio import AsyncIOMotorGridFSBucket
+from fastapi.responses import Response
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = FastAPI()
@@ -58,10 +64,7 @@ def read_root():
 @app.post("/upload")
 async def upload_pdf(file:UploadFile = File(...), current_user: UserCreate = Depends(get_current_user)):
     content = await file.read()
-    
     user_id = current_user["id"]
-    
-    print(current_user,'current_user')
     result = await pdfs_collection.insert_one({
         "filename": file.filename,
         "content":content,
@@ -79,7 +82,6 @@ async def upload_pdf(file:UploadFile = File(...), current_user: UserCreate = Dep
     
     # Generate ans store embedddings
     chunks_with_embeddings = embedding_manager.generate_embeddings(df.to_dict(orient="records"))
-    print(df)
     # Storing embeddings in MongoDB
     for chunk in chunks_with_embeddings:
         await db.embeddings.insert_one({
@@ -88,13 +90,14 @@ async def upload_pdf(file:UploadFile = File(...), current_user: UserCreate = Dep
             "text":chunk["text"],
             "embeddings": chunk["embedding"],
             "user_id":ObjectId(user_id),
-            "pdf_id": pdf_id,
+            "pdf_id": ObjectId(pdf_id),
             "timestamp": datetime.datetime.utcnow()
         })
         # Adding to chromaDB
         embedding_manager.add_to_chroma([chunk])
     
     return {
+        "pdf_id": str(pdf_id),
         'message':f"Uploaded and processed {file.filename} with embeddings. "
     }
 
@@ -253,6 +256,34 @@ async def extract_topics_from_db(pdf_id: str, current_user: dict = Depends(get_c
     }
 
 
+
+
+@app.get("/pdf/{pdf_id}")
+async def get_pdf_file(
+    pdf_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    pdf_collection = db["pdfs"]
+
+    # Fetch the PDF document from MongoDB
+    pdf_doc = await pdf_collection.find_one({
+        "_id": ObjectId(pdf_id),
+        "user_id": ObjectId(current_user["id"])
+    })
+
+    if not pdf_doc:
+        raise HTTPException(status_code=404, detail="PDF not found or unauthorized access")
+
+    pdf_content = pdf_doc["content"]
+    filename = pdf_doc.get("filename", "document.pdf")
+
+    return StreamingResponse(
+        BytesIO(pdf_content),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"'
+        }
+    )
 # ----------------------------------------------Login and Register Section-----------------------
 
 user_collection = db["users"]

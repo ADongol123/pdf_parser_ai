@@ -1,8 +1,16 @@
 import textwrap
 from dotenv import load_dotenv
 import os
-from config import MONGO_URI
+from config import MONGO_URI,MONGO_DB_NAME
+from pymongo import MongoClient
+from gridfs import GridFS
+
 load_dotenv()
+
+client = MongoClient(MONGO_URI)
+db = client[MONGO_DB_NAME]
+fs = GridFS(db, collection="pdf_files")
+pdfs_collection = db["pdfs"]
 
 def print_wrapped(text: str, wrap_length: int = 80):
     """Print text with wrapping."""
@@ -11,7 +19,6 @@ def print_wrapped(text: str, wrap_length: int = 80):
     
     
 
-from pymongo import MongoClient
 
 def get_meta_phrases_from_db():
     MONGO_URL = MONGO_URI
@@ -35,3 +42,11 @@ def is_meta_question(query: str):
     
     lowered_query = query.lower()
     return any(phrase in lowered_query for phrase in all_phrases)
+
+
+def get_pdf_metadata(pdf_id: str) -> dict:
+    pdf_doc = pdfs_collection.find_one({"pdf_id": pdf_id})
+    if not pdf_doc:
+        raise ValueError(f"No PDF found with pdf_id: {pdf_id}")
+    pdf_doc.pop("_id", None)
+    return pdf_doc

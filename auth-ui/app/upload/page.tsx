@@ -20,7 +20,6 @@ import { useRouter } from "next/navigation";
 
 export default function PDFUploadPage() {
   const router = useRouter();
-  
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginForm } from "@/app/Login/page";
@@ -10,7 +10,14 @@ export default function Home() {
   const router = useRouter();
   const [tab, setTab] = useState("login");
 
+
+  useEffect(() =>{
+    if (localStorage.getItem("access_token")) {
+      router.replace("/upload");
+    }
+  },[])
   return (
+    
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">

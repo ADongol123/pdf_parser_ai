@@ -1,161 +1,307 @@
-// import { useEffect, useState } from "react";
-// // import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// import { Card } from "@/components/ui/card";
-// import { Separator } from "@/components/ui/separator";
-// import { Badge } from "@/components/ui/badge";
-// import { Bot, Send } from "lucide-react";
-// import { Input } from "@/components/ui/input";
-// import { Button } from "@/components/ui/button";
+"use client";
 
-// const fetchChatHistory = async (pdfId) => {
-//   const res = await fetch(`http://127.0.0.1:8000/get-chat-history/${pdfId}`);
-//   return res.json();
-// };
+import React from "react";
 
-// const sendMessage = async ({ pdfId, query } : any) => {
-//   const url = `http://127.0.0.1:8000/chat/?pdf_id=${encodeURIComponent(pdfId)}&query=${encodeURIComponent(query)}`;
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, Menu, MoreVertical, Paperclip, Smile } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { fetchPdf, getConversationByPdfId, sendQuery } from "@/lib/api";
+import RobotLoading from "@/components/robot-loading";
+import { set } from "date-fns";
+
+type Message = {
+  id: string;
+  response: string;
+  role: "user" | "assistant";
+  timestamp: string;
+};
+
+export default function page() {
+  const [oldMessages, setOldMessages] = useState<any>(null);
+  const [messages, setMessages] = useState<any>([
+    {
+      id: "1",
+      response: "Hello! I'm your AI assistant. How can I help you today?",
+    },
+  ]);
+  const [pdfUrl, setPdfUrl] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  function addNewMessage(input: string, setMessages: React.Dispatch<React.SetStateAction<any>>) {
+    const newMessage = {
+      query: input,
+      response: null,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
   
-//   const res = await fetch(url, {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//   });
+    setMessages((prev: any) => [...prev, newMessage]);
+  }
 
-//   return res.json();
-// };
+  useEffect(() => {
+    const fetchPdfData = async () => {
+      const pdfUrl = await fetchPdf();
+      if (pdfUrl) {
+        setPdfUrl(pdfUrl);
+      }
+      setLoading(false);
+    };
+    const fetchPdfConversation = async () => {
+      const convoId = await getConversationByPdfId();
+      if (convoId) {
+        setOldMessages(convoId);
+        for (const i of convoId) {
+          setMessages((prev:any) => [...prev, i]);
+        }
+      }
+    };
 
+    fetchPdfData();
+    fetchPdfConversation();
+  }, []);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    addNewMessage(input,setMessages);
+    if (!input.trim()) return;
 
-// const page = ({ pdfUrl, pdfId }: any) => {
-//   // const queryClient = useQueryClient();
-//   const [messages, setMessages] = useState<any>([]);
-//   const [input, setInput] = useState("");
-//   const [isGenerating, setIsGenerating] = useState(false);
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const formattedHours = hours % 12 || 12;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    const timestamp = `${formattedHours}:${formattedMinutes} ${ampm}`;
 
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      response: input,
+      role: "user",
+      timestamp,
+    };
 
-//   // Fetch chat history
-//   const { data: chatHistory, isLoading: isHistoryLoading }: any = useQuery({
-//     queryKey: ["chatHistory", pdfId],
-//     queryFn: () => fetchChatHistory(pdfId),
-//     onSuccess: (data: any) => setMessages(data || []),
-//   });
-//   console.log(chatHistory,"chatHistory")
-//   console.log(isHistoryLoading);
-//   // Send chat message
-//   const mutation = useMutation({
-//     mutationFn: ({ query }: any) => sendMessage({ pdfId, query }),
-//     onMutate: async ({ query }) => {
-//       setMessages((prev: any) => [
-//         ...prev,
-//         { id: Date.now(), role: "user", content: query },
-//       ]);
-//       setInput("");
-//       setIsGenerating(true);
-//     },
-//     onSuccess: async (data) => {
-//       await simulateTyping(data.answer);
-//       setIsGenerating(false);
-//     },
-//   });
+    setMessages((prev:any) => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
 
-//   const simulateTyping = async (text) => {
-//     let generatedText = "";
-//     for (const word of text.split(" ")) {
-//       generatedText += word + " ";
-//       setMessages((prev) => [
-//         ...prev.slice(0, -1),
-//         { ...prev[prev.length - 1], content: generatedText },
-//       ]);
-//       await new Promise((resolve) => setTimeout(resolve, 50));
-//     }
-//   };
+    try {
+      const response = await sendQuery(input);
 
-//   const handleChatSubmit = (e) => {
-//     e.preventDefault();
-//     if (input.trim()) {
-//       setMessages((prev) => [
-//         ...prev,
-//         { id: Date.now(), role: "assistant", content: "" },
-//       ]);
-//       mutation.mutate({ query: input });
-//     }
-//   };
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        response: response.response || "No response from AI.",
+        role: "assistant",
+        timestamp,
+      };
 
-//   return (
-//     <div className="flex flex-col md:flex-row h-screen p-4 gap-4">
-//       <div className="w-full md:w-1/2 flex flex-col gap-4">
-//         <Card className="flex-1 flex flex-col overflow-hidden">
-//           {pdfUrl && (
-//             <iframe
-//               src={pdfUrl}
-//               className="w-full h-full border-0"
-//               title="PDF Viewer"
-//             />
-//           )}
-//         </Card>
-//       </div>
+      setMessages((prev:any) => [...prev, aiMessage]);
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        response: "Oops! Something went wrong while fetching the response.",
+        role: "assistant",
+        timestamp,
+      };
 
-//       <div className="w-full md:w-1/2 flex flex-col gap-4">
-//         <Card className="flex-1 flex flex-col p-4 overflow-hidden">
-//           <div className="flex-1 overflow-y-auto mb-4">
-//             {isHistoryLoading ? (
-//               <p className="text-sm text-muted-foreground">
-//                 Loading chat history...
-//               </p>
-//             ) : (
-//               chatHistory?.chat_history?.map((message) => (
-//                 <div
-//                   key={message.id}
-//                   className={`flex flex-col gap-4 mb-4 p-4 rounded-lg ${
-//                     message.role === "user"
-//                       ? "bg-primary text-primary-foreground ml-8"
-//                       : "bg-muted mr-8"
-//                   }`}
-//                 >
-//                   <p className="whitespace-pre-wrap">{message.query}</p>
-//                   {/* {message.role === "assistant" && ( */}
-//                     <div className="flex items-center mb-2">
-//                       <Bot className="h-5 w-5 mr-2" />
-//                       <span className="font-medium">AI Assistant</span>
-//                       <p>{message?.answer}</p>
-//                     </div>
-//                   {/* )} */}
-//                 </div>
-//               ))
-//             )}
-//           </div>
+      setMessages((prev:any) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-//           <Separator className="my-2" />
-
-//           <form onSubmit={handleChatSubmit} className="flex gap-2">
-//             <Input
-//               value={input}
-//               onChange={(e) => setInput(e.target.value)}
-//               placeholder="Ask a question about the PDF..."
-//               className="flex-1"
-//               disabled={mutation.isLoading}
-//             />
-//             <Button
-//               type="submit"
-//               disabled={!input.trim() || mutation.isLoading}
-//             >
-//               <Send className="h-4 w-4" />
-//             </Button>
-//           </form>
-//         </Card>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default page;
-import React from 'react'
-
-const page = () => {
   return (
-    <div>
-      
-    </div>
-  )
-}
+    <div className="flex h-screen bg-transparent">
+      {/* Chat header */}
+      <div className="w-full md:w-1/2 flex flex-col gap-4 h-full">
+        <Card className="flex-1 h-full">
+          {loading ? (
+            <RobotLoading text="pdf is loading" />
+          ) : (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full border-0"
+              title="PDF Viewer"
+            />
+          )}
+        </Card>
+      </div>
+      <div className=" flex flex-col w-full md:w-1/2 h-full">
+        <div className="flex-[0.95] overflow-y-auto p-4 space-y-4">
+          <AnimatePresence initial={false}>
+            {messages.map((message: any,index:number) => (
+              <React.Fragment key={index}>
+                {/* User Query Bubble */}
+                {message.query && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex justify-end mb-4"
+                  >
+                    <div className="flex max-w-[80%] flex-row-reverse">
+                      <div className="flex-shrink-0 ml-3 mt-1">
+                        <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center shadow-sm">
+                          <span className="text-white text-xs font-bold">
+                            You
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="bg-black text-white rounded-2xl rounded-tr-none px-4 py-3 shadow-sm font-medium">
+                          {message.query}
+                        </div>
+                        <span className="text-xs mt-1 text-gray-500 text-right mr-1">
+                          {message.timestamp}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
 
-export default page
+                {/* AI Response Bubble */}
+                {message.response && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex justify-start mb-4"
+                  >
+                    <div className="flex max-w-[80%] flex-row">
+                      <div className="flex-shrink-0 mr-3 mt-1">
+                        <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shadow-sm">
+                          <span className="text-white text-xs font-bold">
+                            AI
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="bg-white text-gray-800 border border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
+                          {message.response}
+                        </div>
+                        <span className="text-xs mt-1 text-gray-500 ml-1">
+                          {message.timestamp}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </React.Fragment>
+            ))}
+          </AnimatePresence>
+
+          {/* Enhanced typing indicator */}
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.3 }}
+              className="flex justify-start mb-4"
+            >
+              <div className="flex max-w-[80%]">
+                <div className="flex-shrink-0 mr-3 mt-1">
+                  <motion.div
+                    className="w-8 h-8 rounded-full bg-black flex items-center justify-center shadow-sm"
+                    animate={{
+                      boxShadow: [
+                        "0 0 0 0 rgba(0, 0, 0, 0.7)",
+                        "0 0 0 3px rgba(0, 0, 0, 0.2)",
+                        "0 0 0 0 rgba(0, 0, 0, 0.7)",
+                      ],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatType: "loop",
+                    }}
+                  >
+                    <span className="text-white text-xs font-bold">AI</span>
+                  </motion.div>
+                </div>
+
+                <div className="flex flex-col">
+                  <motion.div className="rounded-2xl px-4 py-3 bg-white text-gray-800 rounded-tl-none border border-gray-200 shadow-sm relative overflow-hidden">
+                    {/* Background pulse effect */}
+                    <motion.div
+                      className="absolute inset-0 bg-black opacity-0"
+                      animate={{ opacity: [0, 0.02, 0] }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Number.POSITIVE_INFINITY,
+                        repeatType: "loop",
+                      }}
+                    />
+
+                    <div className="flex space-x-2 items-center h-5 relative z-10">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-2.5 h-2.5 rounded-full bg-black"
+                          animate={{
+                            y: [0, -5, 0],
+                            scale: [0.8, 1.2, 0.8],
+                            backgroundColor: ["#000000", "#333333", "#000000"],
+                          }}
+                          transition={{
+                            duration: 1,
+                            repeat: Number.POSITIVE_INFINITY,
+                            repeatType: "loop",
+                            ease: "easeInOut",
+                            delay: i * 0.2,
+                          }}
+                          style={{
+                            filter: "drop-shadow(0 0 1px rgba(0,0,0,0.5))",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+        {/* Input area */}
+        <div className="border-t border-gray-200 bg-white p-3">
+          <form
+            onSubmit={handleSubmit}
+            className="flex items-center space-x-2 max-w-4xl mx-auto"
+          >
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full border border-gray-300 rounded-full pl-4 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              ></button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              className={`p-2.5 rounded-full ${
+                !input.trim() || isLoading
+                  ? "bg-gray-200 text-gray-500"
+                  : "bg-black text-white hover:bg-gray-800"
+              } transition-colors shadow-sm`}
+            >
+              <Send size={18} />
+            </button>
+          </form>
+        </div>{" "}
+      </div>
+      {/* Chat messages */}
+    </div>
+  );
+}
