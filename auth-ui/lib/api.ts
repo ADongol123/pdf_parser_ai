@@ -182,3 +182,38 @@ export const sendQuery = async (query: string) => {
 
 
 
+export const getChatRooms = async () => {
+  const token = localStorage.getItem("access_token");
+
+  const res = await fetch(`http://127.0.0.1:8000/get_chat_rooms`, {
+    method: "GET", 
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch previous conversation");
+  }
+
+  return res.json(); 
+};
+
+export const createChatRoom = async ({title}:any) => {
+  const token = localStorage.getItem('access_token') // or use cookies/session
+  if (!title.trim()) return
+
+  try {
+    await fetch(`http://127.0.0.1:8000/create_chat_rooms?title=${title}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      // body: JSON.stringify({ title }),
+    })
+  } catch (error) {
+    console.error('Error creating chat room:', error)
+  }
+}

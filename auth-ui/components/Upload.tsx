@@ -22,7 +22,7 @@ import ChatSidebar from "@/components/Sidebar";
 
 
 
-export default function PDFUploadPage() {
+export default function UploadFile() {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);

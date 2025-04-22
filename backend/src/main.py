@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, UploadFile,File,HTTPException, Depends,Query
+from fastapi import FastAPI, Request, UploadFile,File,status,HTTPException, Depends,Query
 from pydantic import BaseModel
 from src.data_processing import process_pdfs
 from src.embeddings import EmbeddingManager
@@ -255,6 +255,39 @@ async def extract_topics_from_db(pdf_id: str, current_user: dict = Depends(get_c
         "raw_response": response
     }
 
+# ----------------------------------------------Chat Room Section-----------------------
+@app.post("/create_chat_rooms")
+async def create_chat(title: str, current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+
+    # Check if a chat room with the same title already exists for this user
+    existing_chat = await db["chat_rooms"].find_one({
+        "user_id": ObjectId(user_id),
+        "title": title
+    })
+
+    if existing_chat:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Chat room with this title already exists."
+        )
+
+    # If not exists, create new chat room
+    chat_data = {
+        "user_id": ObjectId(user_id),
+        "title": title,
+        "timestamp": datetime.datetime.utcnow()
+    }
+    result = await db["chat_rooms"].insert_one(chat_data)
+    return {"chat_id": str(result.inserted_id)}
+
+
+@app.get("/get_chat_rooms")
+async def get_chat_rooms(current_user:dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    chat_rooms = await db["chat_rooms"].find({"user_id": ObjectId(user_id)}).to_list(length=None)
+    return [{"chat_id": str(room["_id"]), "title": room["title"], "timestamp":room["timestamp"]} for room in chat_rooms]
+    
 
 
 
@@ -335,6 +368,8 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
     
     
     #-----------------------------------------------Meta Data Section --------------------------
+
+
 @app.post("/save-meta-phrases")
 async def save_phrases():
     await db["meta_question_phrases"].delete_many({})  # clear old data if needed

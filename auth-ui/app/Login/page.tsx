@@ -30,7 +30,7 @@ export function LoginForm() {
       localStorage.setItem("userId", user_id);
       toast.success("🎉 Login Successfull");
       // Redirect on success
-      router.push("/upload");
+      router.push("/chat");
     } catch (error: any) {
       setStatus(error.message);
     }

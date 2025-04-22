@@ -13,7 +13,7 @@ export default function Home() {
 
   useEffect(() =>{
     if (localStorage.getItem("access_token")) {
-      router.replace("/upload");
+      router.replace("/chat");
     }
   },[])
   return (
