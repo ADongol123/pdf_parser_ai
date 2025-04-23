@@ -15,6 +15,9 @@ export default function Home() {
     if (localStorage.getItem("access_token")) {
       router.replace("/upload");
     }
+    else{
+      router.replace("/")
+    }
   },[])
   return (
     

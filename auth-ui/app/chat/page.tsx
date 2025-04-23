@@ -1,12 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Menu, MoreVertical, Paperclip, Smile } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { fetchPdf, getConversationByPdfId, sendQuery } from "@/lib/api";
+import {
+  fetchPdf,
+  getConversationByPdfId,
+  getTopicsByPDF,
+  sendQuery,
+} from "@/lib/api";
 import RobotLoading from "@/components/robot-loading";
 import { set } from "date-fns";
 
@@ -25,23 +30,62 @@ export default function page() {
       response: "Hello! I'm your AI assistant. How can I help you today?",
     },
   ]);
+  const [pdfTopics, setPdfTopics] = useState<any>(null);
   const [pdfUrl, setPdfUrl] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef:any = React.useRef(null)
 
-  function addNewMessage(input: string, setMessages: React.Dispatch<React.SetStateAction<any>>) {
-    const newMessage = {
-      query: input,
-      response: null,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-  
-    setMessages((prev: any) => [...prev, newMessage]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({behaviour:"smooth"})
   }
+  const handleTopicClick = async (topic: string) => {
+    if (!topic.trim()) return;
+
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const formattedHours = hours % 12 || 12;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    const timestamp = `${formattedHours}:${formattedMinutes} ${ampm}`;
+
+    const topicMessage = {
+      query: `What is ${topic} tell me in detail`,
+      role: "user",
+      timestamp,
+    };
+
+    setMessages((prev: any) => [...prev, topicMessage]);
+    setIsLoading(true);
+
+    try {
+      const response = await sendQuery(topic);
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        response: response.response || "No response from AI.",
+        role: "assistant",
+        timestamp,
+      };
+
+      setMessages((prev: any) => [...prev, aiMessage]);
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        response: "Oops! Something went wrong while fetching the response.",
+        role: "assistant",
+        timestamp,
+      };
+
+      setMessages((prev: any) => [...prev, errorMessage]);
+      scrollToBottom();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchPdfData = async () => {
@@ -56,18 +100,24 @@ export default function page() {
       if (convoId) {
         setOldMessages(convoId);
         for (const i of convoId) {
-          setMessages((prev:any) => [...prev, i]);
+          setMessages((prev: any) => [...prev, i]);
         }
       }
     };
 
+    const fetchPDFTopics = async () => {
+      const topics = await getTopicsByPDF();
+      if (topics) {
+        setPdfTopics(topics);
+      }
+    };
     fetchPdfData();
     fetchPdfConversation();
+    fetchPDFTopics();
   }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addNewMessage(input,setMessages);
+    // addNewMessage(input, setMessages);
     if (!input.trim()) return;
 
     const now = new Date();
@@ -78,14 +128,13 @@ export default function page() {
     const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
     const timestamp = `${formattedHours}:${formattedMinutes} ${ampm}`;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      response: input,
+    const userMessage: any = {
+      query: input,
       role: "user",
       timestamp,
     };
 
-    setMessages((prev:any) => [...prev, userMessage]);
+    setMessages((prev: any) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
 
@@ -99,7 +148,7 @@ export default function page() {
         timestamp,
       };
 
-      setMessages((prev:any) => [...prev, aiMessage]);
+      setMessages((prev: any) => [...prev, aiMessage]);
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
@@ -108,12 +157,11 @@ export default function page() {
         timestamp,
       };
 
-      setMessages((prev:any) => [...prev, errorMessage]);
+      setMessages((prev: any) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="flex h-screen bg-transparent">
       {/* Chat header */}
@@ -133,7 +181,23 @@ export default function page() {
       <div className=" flex flex-col w-full md:w-1/2 h-full">
         <div className="flex-[0.95] overflow-y-auto p-4 space-y-4">
           <AnimatePresence initial={false}>
-            {messages.map((message: any,index:number) => (
+            <div>
+              <h1 className="text-white">
+                Here are some topics about the pdf:
+              </h1>
+              {pdfTopics?.topics
+                ?.slice(0, 5)
+                .map((topic: any, index: number) => (
+                  <h1
+                    key={index}
+                    className="text-white border border-white rounded-md p-2 mb-2 cursor-pointer"
+                    onClick={() => handleTopicClick(topic)}
+                  >
+                    {topic}
+                  </h1>
+                ))}
+            </div>
+            {messages.map((message: any, index: number) => (
               <React.Fragment key={index}>
                 {/* User Query Bubble */}
                 {message.query && (
@@ -188,6 +252,7 @@ export default function page() {
                         </span>
                       </div>
                     </div>
+                    <div ref={messagesEndRef} />
                   </motion.div>
                 )}
               </React.Fragment>

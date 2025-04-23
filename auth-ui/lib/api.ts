@@ -104,6 +104,24 @@ export const getConversationByPdfId = async () => {
   return res.json(); 
 };
 
+export const getTopicsByPDF = async () => {
+  const token = localStorage.getItem("access_token");
+  const pdfId = localStorage.getItem("fileId");
+
+  const res = await fetch(`http://127.0.0.1:8000/extract?pdf_id=${pdfId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch");
+  }
+
+  return res.json();
+};
+
 
 
 

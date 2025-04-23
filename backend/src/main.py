@@ -240,12 +240,20 @@ async def extract_topics_from_db(pdf_id: str, current_user: dict = Depends(get_c
 
     # Step 3: Create prompt for Mistral
     prompt = f"""
-    Analyze the following document content and identify 5–10 high-level topics or themes discussed in it.
-    Respond only with a numbered list of topic names.
+    Extract exactly 5 to 10 concise, high-level **topic names** from the document below.
+
+    ⚠️ Do NOT include any descriptions, examples, subpoints, explanations, or description in the bracket like this ().
+    ❗ Output should be a simple numbered list of **topic names only**.
+
+    Example:
+    Programming Languages
+    Python Basics
+    Functions and Arguments
 
     Document Content:
     {short_text}
     """
+
 
     # Step 4: Query Mistral
     response = query_ollama(prompt)
