@@ -155,8 +155,15 @@ async def query_pdf(req: QueryRequest, current_user: dict = Depends(get_current_
         pages_and_chunks=pages_and_chunks
     )
     print(results, 'results')
+    previous_conversations = await db['conversations'].find({
+        "user_id": ObjectId(user_id),
+        "pdf_id": pdf_obj_id
+        }).sort("timestamp",-1).limit(3).to_list(length=3)
+    
+    # Sorting in chronological order
+    previous_conversations.reverse()
     # Step 4: Generate response
-    ollama_prompt = create_ollama_prompt(query, results)
+    ollama_prompt = create_ollama_prompt(query, results, history=previous_conversations)
     mistral_response = query_ollama(ollama_prompt)
 
     if mistral_response:
