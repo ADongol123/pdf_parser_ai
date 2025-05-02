@@ -1,0 +1,11 @@
+pdf_id,question,answer
+think_python_1,Who is the author of Think Python?,Allen B. Downey
+think_python_1,What is the purpose of the print function in Python?,To display output to the screen
+think_python_1,What does the input function do?,It reads input from the user
+think_python_1,What symbol is used to comment in Python?,#
+think_python_1,What is the result of 1 + 2 * 3 in Python?,7
+think_python_1,How do you create a function in Python?,Using the def keyword
+think_python_1,What is a syntax error?,An error in the structure of a program
+think_python_1,What is a value in Python?,A basic thing that a program manipulates like a number or string
+think_python_1,What keyword is used to define a function?,def
+think_python_1,What is a variable in Python?,A name that refers to a value
