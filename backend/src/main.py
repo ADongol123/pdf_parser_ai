@@ -27,6 +27,8 @@ import tempfile
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 from fastapi.responses import Response
 import warnings
+# from src.testing.evaluation_interface import answer_question
+
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -361,3 +363,13 @@ async def save_phrases():
 
     result = await db["meta_question_phrases"].insert_many(records)
     return {"inserted_ids": [str(_id) for _id in result.inserted_ids]}
+
+
+class QARequest(BaseModel):
+    pdf_id: str
+    question: str
+
+# @app.post("/answer_question")
+# def answer_question_endpoint(req: QARequest):
+#     answer = answer_question(req.pdf_id, req.question)  # Your core logic
+#     return {"answer": answer}
